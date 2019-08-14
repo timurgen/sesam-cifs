@@ -57,7 +57,7 @@ public class CifsClient {
     public List<FileOrDirectoryInfo> listShareContent(String share, String path) throws IOException {
         List<FileOrDirectoryInfo> result = new ArrayList<>(16);
 
-        try (Connection conn = client.connect(config.getHostname(), config.getPort());
+        try (Connection conn = client.connect(config.getCifsHostname(), config.getPort());
                 Session session = conn.authenticate(this.authCt);
                 DiskShare connectedShare = (DiskShare) session.connectShare(share)) {
 
@@ -86,7 +86,7 @@ public class CifsClient {
      * @throws IOException
      */
     public Path downloadFile(String share, String path) throws IOException {
-        try (Connection conn = client.connect(config.getHostname(), config.getPort());
+        try (Connection conn = client.connect(config.getCifsHostname(), config.getPort());
                 Session session = conn.authenticate(this.authCt);
                 DiskShare connectedShare = (DiskShare) session.connectShare(share)) {
 
