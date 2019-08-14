@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class CifsConfig {
 
     @Value("${CIFS_HOSTNAME:null}")
-    private String hostname;
+    private String cifsHostname;
     
     @Value("${CIFS_PORT:445}")
     private int port;
@@ -27,12 +27,12 @@ public class CifsConfig {
     @Value("${CIFS_DOMAIN:WORKGROUP}")
     private String domain;
 
-    public String getHostname() {
-        return hostname;
+    public String getCifsHostname() {
+        return cifsHostname;
     }
 
-    public void setHostname(String hostname) {
-        this.hostname = hostname;
+    public void setCifsHostname(String hostname) {
+        this.cifsHostname = hostname;
     }
 
     public int getPort() {
@@ -70,7 +70,7 @@ public class CifsConfig {
     @Override
     public String toString() {
         return "CifsConfig{" 
-                + "hostname=" + hostname 
+                + "hostname=" + cifsHostname 
                 + ", port=" + port 
                 + ", username=" + cifsUsername 
                 + ", password=" + password.replaceAll(".", "*") 
