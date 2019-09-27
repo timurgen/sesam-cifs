@@ -1,7 +1,7 @@
 package io.sesam.cifs.service;
 
 /**
- *
+ * POJO containing basic info about file/directory
  * @author Timur Samkharadze
  */
 public class FileOrDirectoryInfo {
