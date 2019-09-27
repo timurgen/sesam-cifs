@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.HandlerMapping;
 
 /**
+ * Provides funcitons to work with CIFS shares
  *
  * @author Timur Samkharadze
  */
@@ -31,10 +32,17 @@ public class CifsController {
     CifsClient cifsClient;
 
     /**
-     * Endpoint to list share content. May be followed by optional path to list content of a subdirectory of share
-     * Must ends with directory an will throw an error in case of file-name provided
-     * eg  * /list/go/ will list content of shared folder "go"
-     *     * /list/go/Csv2Json content of subfolder Csv2Json etc
+     * Endpoint to list share content.
+     * <p>
+     * May be followed by optional path to list content of a subdirectory of
+     * share.
+     * <p>
+     * Must ends with directory and will throw an error in case of file-name
+     * provided.
+     * <p>
+     * /list/go/ will list content of shared folder "go" * /list/go/Csv2Json
+     * content of subfolder Csv2Json etc
+     *
      * @param shareName name of share
      * @param request servlet request object
      * @return share content
@@ -47,40 +55,43 @@ public class CifsController {
 
         String path = getSharePathFromRequestPath(request);
 
-        List<FileOrDirectoryInfo> listShareContent = this.cifsClient.listShareContent(shareName, path);
-        return listShareContent;
+        return this.cifsClient.listShareContent(shareName, path);
     }
 
     /**
      * Endpoint to download file from given share and path
-     * @param shareName
-     * @param request
+     *
+     * @param shareName share name
+     * @param request HttpServletRequest object
      * @return file content
-     * @throws IOException 
+     * @throws IOException
      */
     @RequestMapping(value = {"/get/{share}/**"}, method = {RequestMethod.GET})
     public ResponseEntity<Resource> getFile(
             @PathVariable("share") String shareName,
             HttpServletRequest request) throws IOException {
-        String path = getSharePathFromRequestPath(request);
-        Path downloadFile = cifsClient.downloadFile(shareName, path);
+
+        String pathToFile = getSharePathFromRequestPath(request);
+        Path downloadFile = cifsClient.downloadFile(shareName, pathToFile);
         HttpHeaders headers = new HttpHeaders();
-        
+
         ByteArrayResource resource = new ByteArrayResource(Files.readAllBytes(downloadFile));
-        if(Files.exists(downloadFile)){
+        if (Files.exists(downloadFile)) {
             Files.delete(downloadFile);
         }
         return ResponseEntity.ok()
-            .headers(headers)
-            .contentLength(resource.contentLength())
-            .contentType(MediaType.parseMediaType("application/octet-stream"))
-            .body(resource);
-        
+                .headers(headers)
+                .contentLength(resource.contentLength())
+                .contentType(MediaType.parseMediaType("application/octet-stream"))
+                .body(resource);
+
     }
+
     /**
      * Utility function to get CIFS path from request
+     *
      * @param request
-     * @return 
+     * @return
      */
     private String getSharePathFromRequestPath(HttpServletRequest request) {
         final String path

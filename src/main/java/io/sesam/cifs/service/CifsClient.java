@@ -50,10 +50,15 @@ public class CifsClient {
                 config.getPassword().toCharArray(),
                 config.getDomain()
         );
-        this.client = new SMBClient();
-        System.out.println(config);
     }
 
+    /**
+     * 
+     * @param share name of SMB/CIFS share
+     * @param path path to target folder in given share
+     * @return list with share content information
+     * @throws IOException if any  IO exception occurs
+     */
     public List<FileOrDirectoryInfo> listShareContent(String share, String path) throws IOException {
         List<FileOrDirectoryInfo> result = new ArrayList<>(16);
 
