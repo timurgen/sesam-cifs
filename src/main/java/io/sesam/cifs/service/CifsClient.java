@@ -50,6 +50,7 @@ public class CifsClient {
                 config.getPassword().toCharArray(),
                 config.getDomain()
         );
+        this.client = new SMBClient();
     }
 
     /**
