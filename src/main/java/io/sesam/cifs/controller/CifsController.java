@@ -3,16 +3,17 @@ package io.sesam.cifs.controller;
 import io.sesam.cifs.service.CifsClient;
 import io.sesam.cifs.service.FileOrDirectoryInfo;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,17 @@ public class CifsController {
 
     @Autowired
     CifsClient cifsClient;
+
+    private static final Logger LOG = LoggerFactory.getLogger(CifsController.class);
+
+    public CifsController() {
+        long heapSize = Runtime.getRuntime().totalMemory();
+        long heapMaxSize = Runtime.getRuntime().maxMemory();
+        long heapFreeSize = Runtime.getRuntime().freeMemory();
+        LOG.debug("current heap size: {}", heapSize);
+        LOG.debug("max heap size: {}", heapMaxSize);
+        LOG.debug("free memory: {}", heapFreeSize);
+    }
 
     /**
      * Endpoint to list share content.
@@ -63,27 +75,40 @@ public class CifsController {
      *
      * @param shareName share name
      * @param request HttpServletRequest object
-     * @return file content
+     * @param response stream file content
      * @throws IOException
      */
     @RequestMapping(value = {"/get/{share}/**"}, method = {RequestMethod.GET})
-    public ResponseEntity<Resource> getFile(
+    public void getFile(
             @PathVariable("share") String shareName,
-            HttpServletRequest request) throws IOException {
+            HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         String pathToFile = getSharePathFromRequestPath(request);
+        LOG.debug("serving request {}", pathToFile);
         Path downloadFile = cifsClient.downloadFile(shareName, pathToFile);
-        HttpHeaders headers = new HttpHeaders();
+        LOG.debug("downloaded file {} of size {}", downloadFile.getFileName(),
+                 FileUtils.byteCountToDisplaySize(
+                        FileUtils.sizeOf(downloadFile.toFile())));
+        try ( InputStream fileIo = Files.newInputStream(downloadFile)) {
+            response.addHeader("Content-disposition", "attachment;filename=" + downloadFile.getFileName());
+            response.setContentType("application/octet-stream");
 
-        ByteArrayResource resource = new ByteArrayResource(Files.readAllBytes(downloadFile));
+            IOUtils.copy(fileIo, response.getOutputStream());
+            response.flushBuffer();
+        } catch (java.lang.OutOfMemoryError exc) {
+            long heapSize = Runtime.getRuntime().totalMemory();
+            long heapMaxSize = Runtime.getRuntime().maxMemory();
+            long heapFreeSize = Runtime.getRuntime().freeMemory();
+            LOG.error("Out of memory occured", exc);
+            LOG.warn("current heap size: {}", heapSize);
+            LOG.warn("max heap size: {}", heapMaxSize);
+            LOG.warn("free memory: {}", heapFreeSize);
+        }
+
         if (Files.exists(downloadFile)) {
+            LOG.debug("delete file {}", downloadFile.getFileName());
             Files.delete(downloadFile);
         }
-        return ResponseEntity.ok()
-                .headers(headers)
-                .contentLength(resource.contentLength())
-                .contentType(MediaType.parseMediaType("application/octet-stream"))
-                .body(resource);
 
     }
 
