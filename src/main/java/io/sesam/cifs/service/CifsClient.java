@@ -119,7 +119,27 @@ public class CifsClient {
                 sharedFile.close();
                 connectedShare.close();
             }
+            if(config.isShouldDeleteFileAfterDownload()){
+                connectedShare.rm(path);
+            }
             return localPath;
+        }
+    }
+
+    /**
+     * Function to delete file (dir?) at given path
+     *
+     * @param share network share name
+     * @param path path to resource on share
+     * @throws IOException if any IOException occurs
+     */
+    public void deleteFile(String share, String path) throws IOException {
+        try (Connection conn = client.connect(config.getCifsHostname(), config.getPort());
+                Session session = conn.authenticate(this.authCt);
+                DiskShare connectedShare = (DiskShare) session.connectShare(share)) {
+            if (connectedShare.fileExists(path)) {
+                connectedShare.rm(path);
+            }
         }
     }
 }
