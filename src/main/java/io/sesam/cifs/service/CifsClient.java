@@ -127,7 +127,7 @@ public class CifsClient {
     }
 
     /**
-     * Function to delete file (dir?) at given path
+     * Function to delete file at given path
      *
      * @param share network share name
      * @param path path to resource on share
