@@ -1,6 +1,7 @@
 package io.sesam.cifs.controller;
 
 import io.sesam.cifs.service.CifsClient;
+import io.sesam.cifs.service.CifsConfig;
 import io.sesam.cifs.service.FileOrDirectoryInfo;
 import java.io.IOException;
 import java.io.InputStream;
@@ -86,15 +87,16 @@ public class CifsController {
         String pathToFile = getSharePathFromRequestPath(request);
         LOG.debug("serving request {}", pathToFile);
         Path downloadFile = cifsClient.downloadFile(shareName, pathToFile);
-        LOG.debug("downloaded file {} of size {}", downloadFile.getFileName(),
-                 FileUtils.byteCountToDisplaySize(
+        LOG.debug("downloaded file {} of size {}", downloadFile.toAbsolutePath(),
+                FileUtils.byteCountToDisplaySize(
                         FileUtils.sizeOf(downloadFile.toFile())));
-        try ( InputStream fileIo = Files.newInputStream(downloadFile)) {
+        try (InputStream fileIo = Files.newInputStream(downloadFile)) {
             response.addHeader("Content-disposition", "attachment;filename=" + downloadFile.getFileName());
             response.setContentType("application/octet-stream");
 
             IOUtils.copy(fileIo, response.getOutputStream());
             response.flushBuffer();
+            LOG.debug("sent response with file {}", downloadFile.getFileName());
         } catch (java.lang.OutOfMemoryError exc) {
             long heapSize = Runtime.getRuntime().totalMemory();
             long heapMaxSize = Runtime.getRuntime().maxMemory();
@@ -103,11 +105,17 @@ public class CifsController {
             LOG.warn("current heap size: {}", heapSize);
             LOG.warn("max heap size: {}", heapMaxSize);
             LOG.warn("free memory: {}", heapFreeSize);
+        } finally {
+            if (Files.exists(downloadFile)) {
+                LOG.debug("delete file {}", downloadFile.getFileName());
+                Files.delete(downloadFile);
+            }
         }
 
-        if (Files.exists(downloadFile)) {
-            LOG.debug("delete file {}", downloadFile.getFileName());
-            Files.delete(downloadFile);
+        if (Files.exists(downloadFile.getParent())
+                && Files.isDirectory(downloadFile.getParent())
+                && downloadFile.getParent().toFile().list().length > 0) {
+            throw new RuntimeException("temporary file storage is not empty after request");
         }
 
     }
