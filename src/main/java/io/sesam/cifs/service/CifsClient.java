@@ -54,11 +54,11 @@ public class CifsClient {
     }
 
     /**
-     * 
+     *
      * @param share name of SMB/CIFS share
      * @param path path to target folder in given share
      * @return list with share content information
-     * @throws IOException if any  IO exception occurs
+     * @throws IOException if any IO exception occurs
      */
     public List<FileOrDirectoryInfo> listShareContent(String share, String path) throws IOException {
         List<FileOrDirectoryInfo> result = new ArrayList<>(16);
@@ -73,6 +73,9 @@ public class CifsClient {
             }).forEach((FileIdBothDirectoryInformation sub) -> {
                 FileOrDirectoryInfo currentObj = new FileOrDirectoryInfo();
                 currentObj.setName(sub.getFileName());
+                currentObj.setSize(sub.getAllocationSize());
+                currentObj.setChangeTimeWindowsTs(sub.getChangeTime().getWindowsTimeStamp());
+                currentObj.setChangeTimeString(sub.getChangeTime().toString());
                 if (EnumWithValue.EnumUtils.isSet(sub.getFileAttributes(), FileAttributes.FILE_ATTRIBUTE_DIRECTORY)) {
                     currentObj.setIsDirectory(true);
                 }
