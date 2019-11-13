@@ -182,6 +182,7 @@ public class CifsController {
             }
         }
         writer.print(']');
+        writer.flush();
     }
 
     /**
