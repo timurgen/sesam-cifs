@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties
 @Component
 public class CifsConfig {
+
     /**
      * hostname where SMB/CIFS share located
      */

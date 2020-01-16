@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.HandlerMapping;
 
@@ -61,6 +62,7 @@ public class CifsController {
      * /list/go/ will list content of shared folder "go" * /list/go/Csv2Json content of subfolder Csv2Json etc
      *
      * @param shareName name of share
+     * @param sortByField optional sorting key
      * @param request servlet request object
      * @return share content
      * @throws IOException if any IO errors occur
@@ -68,11 +70,21 @@ public class CifsController {
     @RequestMapping(value = {"/list/{share}/**"}, method = {RequestMethod.GET})
     public List<FileOrDirectoryInfo> listShareContent(
             @PathVariable("share") String shareName,
+            @RequestParam(name = "sortbyfield", defaultValue = "changetime") String sortByField,
             HttpServletRequest request) throws IOException {
 
         String path = getSharePathFromRequestPath(request);
         LOG.debug("serving request to path {} on share", path, shareName);
-        return this.cifsClient.listShareContent(shareName, path);
+        List<FileOrDirectoryInfo> resultList = this.cifsClient.listShareContent(shareName, path);
+
+        switch (sortByField) {
+            case "changetime":
+                resultList.sort((obj1, obj2) -> {
+                    return (int) (obj1.getChangeTimeWindowsTs() - obj2.getChangeTimeWindowsTs());
+                });
+                break;
+        }
+        return resultList;
     }
 
     /**
@@ -91,14 +103,13 @@ public class CifsController {
         String pathToFile = getSharePathFromRequestPath(request);
         LOG.debug("serving request to path {} on share", pathToFile, shareName);
         Path downloadFile;
-        try (Session smbSession = cifsClient.getSession(); 
-                DiskShare smbShare = (DiskShare) smbSession.connectShare(shareName)) {
-            
+        try ( Session smbSession = cifsClient.getSession();  DiskShare smbShare = (DiskShare) smbSession.connectShare(shareName)) {
+
             downloadFile = cifsClient.downloadFile(smbShare, pathToFile);
             LOG.debug("downloaded file {} of size {}", downloadFile.toAbsolutePath(),
                     FileUtils.byteCountToDisplaySize(
                             FileUtils.sizeOf(downloadFile.toFile())));
-            try (InputStream fileIo = Files.newInputStream(downloadFile)) {
+            try ( InputStream fileIo = Files.newInputStream(downloadFile)) {
                 response.addHeader("Content-disposition", "attachment;filename=" + downloadFile.getFileName());
                 response.setContentType("application/octet-stream");
 
@@ -148,8 +159,7 @@ public class CifsController {
         writer.print('[');
 
         boolean isFirst = true;
-        try (Session smbSession = cifsClient.getSession();
-                DiskShare smbShare = (DiskShare) smbSession.connectShare(shareName)) {
+        try ( Session smbSession = cifsClient.getSession();  DiskShare smbShare = (DiskShare) smbSession.connectShare(shareName)) {
 
             for (SesamFileRequestEntity sharedFile : fileList) {
                 if (!isFirst) {
@@ -165,7 +175,7 @@ public class CifsController {
                                 FileUtils.sizeOf(downloadFile.toFile())));
 
                 byte[] xmlData;
-                try (FileInputStream xmlInputStream = new FileInputStream(downloadFile.toFile())) {
+                try ( FileInputStream xmlInputStream = new FileInputStream(downloadFile.toFile())) {
                     xmlData = new byte[(int) downloadFile.toFile().length()];
                     xmlInputStream.read(xmlData);
                 }

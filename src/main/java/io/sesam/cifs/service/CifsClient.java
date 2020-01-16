@@ -8,12 +8,14 @@ import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.protocol.commons.EnumWithValue;
 import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.auth.AuthenticationContext;
+import com.hierynomus.smbj.common.SMBRuntimeException;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -123,7 +125,7 @@ public class CifsClient {
                 null
         );
         Path localPath;
-        try (InputStream shareFileInputStream = sharedFile.getInputStream()) {
+        try ( InputStream shareFileInputStream = sharedFile.getInputStream()) {
             String tempDir = System.getProperty("java.io.tmpdir");
             localPath = Paths.get(tempDir, "java-cifs-service", path);
             Files.createDirectories(localPath.getParent());
@@ -140,16 +142,62 @@ public class CifsClient {
     /**
      * Function to delete file at given path
      *
-     * @param share network share name
+     * @param connectedShare
      * @param path path to resource on share
      * @throws IOException if any IOException occurs
      */
-    public void deleteFile(String share, String path) throws IOException {
-        try (SMBClient client = new SMBClient(); Connection conn = client.connect(config.getCifsHostname(), config.getPort());
-                Session session = conn.authenticate(this.authCt);
-                DiskShare connectedShare = (DiskShare) session.connectShare(share)) {
-            if (connectedShare.fileExists(path)) {
-                connectedShare.rm(path);
+    public void deleteFile(DiskShare connectedShare, String path) throws IOException {
+        if (connectedShare.fileExists(path)) {
+            connectedShare.rm(path);
+        }
+    }
+
+    /**
+     * Method to move file from one path to another one (in the same share)
+     * @param connectedShare DiskShare object
+     * @param path sorce file path
+     * @param newPath destination path
+     */
+    public void moveFile(DiskShare connectedShare, String path, String newPath) {
+        if (!connectedShare.fileExists(path)) {
+            throw new SMBRuntimeException(String.format("file %s doesn't exist", path));
+        }
+
+        File sourceFile = connectedShare.openFile(
+                path,
+                EnumSet.of(AccessMask.GENERIC_READ),
+                null,
+                SMB2ShareAccess.ALL,
+                SMB2CreateDisposition.FILE_OPEN,
+                null
+        );
+
+        File destinationFile = connectedShare.openFile(
+                path,
+                EnumSet.of(AccessMask.GENERIC_WRITE),
+                null,
+                SMB2ShareAccess.ALL,
+                SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                null
+        );
+
+        try {
+            copyFile(sourceFile, destinationFile);
+            this.deleteFile(connectedShare, path);
+        } catch (IOException ioExc) {
+            throw new SMBRuntimeException(
+                    String.format("couldn't move file %s to %s due to %s", path, newPath, ioExc.getMessage()), ioExc);
+        }
+    }
+
+    private void copyFile(File source, File destination) throws IOException {
+        byte[] buffer = new byte[65536];
+        try ( InputStream in = source.getInputStream()) {
+            try ( OutputStream out = destination.getOutputStream()) {
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
             }
         }
     }
