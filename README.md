@@ -4,6 +4,7 @@ Simple service to list content  of CIFS shares as JSON (or download files)
 Available endpoints: 
 * /list/{share}/{path to dir} - to list share content
 * /get/{share}/{path to file} - to download file from given share
+* /transformandload/{share} - retrivece iDoc files stored as XML and convert them into JSON form
 
 ### System Setup
 
