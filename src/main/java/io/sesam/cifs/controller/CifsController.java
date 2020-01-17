@@ -79,9 +79,14 @@ public class CifsController {
 
         switch (sortByField) {
             case "changetime":
-                resultList.sort((obj1, obj2) -> {
-                    return (int) (obj1.getChangeTimeWindowsTs() - obj2.getChangeTimeWindowsTs());
-                });
+                try {
+                    resultList.sort((obj1, obj2) -> {
+                        return Long.compare(obj1.getChangeTimeWindowsTs(), obj2.getChangeTimeWindowsTs());
+                    });
+                } catch(IllegalArgumentException ex){
+                    LOG.error("Couldn't sort list due to", ex);
+                }
+
                 break;
         }
         return resultList;
